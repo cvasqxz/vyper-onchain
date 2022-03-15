@@ -1,3 +1,4 @@
+# @version ^0.2.0
 from vyper.interfaces import ERC721
 
 implements: ERC721
