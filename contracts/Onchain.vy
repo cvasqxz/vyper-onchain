@@ -215,3 +215,8 @@ def tokenURI(_tokenId: uint256) -> String[1024]:
     baseJSON: String[1024] = '{"hola":"chao"}'
     return baseJSON
     
+
+@external
+def widthraw():
+    assert self.isOwner(msg.sender)
+    send(self.ownerAddress, self.balance)
