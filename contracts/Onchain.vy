@@ -26,6 +26,10 @@ event ApprovalForAll:
     operator: indexed(address)
     approved: bool
 
+event OwnershipTransferred:
+    previousOwner: indexed(address)
+    newOwner: indexed(address)
+
 
 idToOwner: HashMap[uint256, address]
 idToApprovals: HashMap[uint256, address]
@@ -62,11 +66,18 @@ def __init__():
     self.contractStatus = False
 
 
-# OWNABLE
+# OWNABLE & PAUSABLE
 
 @internal
-def isOwner(_owner: address) -> bool:
+def _onlyOwner(_owner: address) -> bool:
     return _owner == self.ownerAddress
+
+
+@internal
+def _transferOwnership(_newOwner: address):
+    oldOwner: address = self.ownerAddress
+    self.ownerAddress = _newOwner
+    log OwnershipTransferred(oldOwner, _newOwner)
 
 
 @view
@@ -76,9 +87,27 @@ def owner() -> address:
     
 
 @external
+def transferOwnership(_newOwner: address):
+    assert self._onlyOwner(msg.sender)
+    self._transferOwnership(_newOwner)
+
+
+@external
+def renounceOwnership():
+    assert self._onlyOwner(msg.sender)
+    self._transferOwnership(ZERO_ADDRESS)
+    
+
+@external
 def pause():
-    assert self.isOwner(msg.sender)
+    assert self._onlyOwner(msg.sender)
     self.contractStatus = not self.contractStatus
+
+
+@external
+def widthraw():
+    assert self._onlyOwner(msg.sender)
+    send(self.ownerAddress, self.balance)
 
 
 # ERC721 STANDARD
@@ -121,10 +150,10 @@ def isApprovedForAll(_owner: address, _operator: address) -> bool:
 @internal
 def _isApprovedOrOwner(_spender: address, _tokenId: uint256) -> bool:
     owner: address = self.idToOwner[_tokenId]
-    spenderIsOwner: bool = owner == _spender
+    spender_onlyOwner: bool = owner == _spender
     spenderIsApproved: bool = _spender == self.idToApprovals[_tokenId]
     spenderIsApprovedForAll: bool = (self.ownerToOperators[owner])[_spender]
-    return (spenderIsOwner or spenderIsApproved) or spenderIsApprovedForAll
+    return (spender_onlyOwner or spenderIsApproved) or spenderIsApprovedForAll
 
 
 @internal
@@ -178,9 +207,9 @@ def approve(_approved: address, _tokenId: uint256):
     assert owner != ZERO_ADDRESS
     assert _approved != owner
     
-    senderIsOwner: bool = self.idToOwner[_tokenId] == msg.sender
+    sender_onlyOwner: bool = self.idToOwner[_tokenId] == msg.sender
     senderIsApprovedForAll: bool = (self.ownerToOperators[owner])[msg.sender]
-    assert (senderIsOwner or senderIsApprovedForAll)
+    assert (sender_onlyOwner or senderIsApprovedForAll)
     
     self.idToApprovals[_tokenId] = _approved
     log Approval(owner, _approved, _tokenId)
@@ -215,8 +244,3 @@ def tokenURI(_tokenId: uint256) -> String[1024]:
     baseJSON: String[1024] = '{"hola":"chao"}'
     return baseJSON
     
-
-@external
-def widthraw():
-    assert self.isOwner(msg.sender)
-    send(self.ownerAddress, self.balance)
