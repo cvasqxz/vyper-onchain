@@ -1,4 +1,4 @@
-import pytest, json
+import pytest
 from brownie import convert
 
 @pytest.fixture
