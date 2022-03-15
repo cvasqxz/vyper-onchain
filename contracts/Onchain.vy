@@ -36,7 +36,12 @@ supportedInterfaces: HashMap[bytes32, bool]
 name: public(String[13])
 symbol: public(String[8])
 maxSupply: public(uint256)
+contractStatus: public(bool)
+
+mintPrice: uint256
 tokenIndex: uint256
+
+ownerAddress: address
 
 ERC165_INTERFACE_ID: constant(bytes32) = 0x0000000000000000000000000000000000000000000000000000000001ffc9a7
 ERC721_INTERFACE_ID: constant(bytes32) = 0x0000000000000000000000000000000000000000000000000000000080ac58cd
@@ -48,8 +53,35 @@ def __init__():
     self.supportedInterfaces[ERC721_INTERFACE_ID] = True
     self.name = "NüCLK Péndulo"
     self.symbol = "NUCLK002"
-    self.maxSupply = 200
 
+    # 200 NFTs @ 0.05 ETH
+    self.maxSupply = 200
+    self.mintPrice = 50000000000000000
+
+    self.ownerAddress = msg.sender
+    self.contractStatus = False
+
+
+# OWNABLE
+
+@internal
+def isOwner(_owner: address) -> bool:
+    return _owner == self.ownerAddress
+
+
+@view
+@external
+def owner() -> address:
+    return self.ownerAddress
+    
+
+@external
+def pause():
+    assert self.isOwner(msg.sender)
+    self.contractStatus = not self.contractStatus
+
+
+# ERC721 STANDARD
 
 @view
 @external
@@ -163,18 +195,23 @@ def setApprovalForAll(_operator: address, _approved: bool):
 
 # Modified Functions
 
+@payable
 @external
 @nonreentrant("lock")
-def mint():
+def mint() -> bool:
     assert self.tokenIndex < self.maxSupply
+    assert msg.value >= self.mintPrice
+    
     self._addTokenTo(msg.sender, self.tokenIndex)
     log Transfer(ZERO_ADDRESS, msg.sender, self.tokenIndex)
     self.tokenIndex += 1
+    return True
 
 
 @view
 @external
 def tokenURI(_tokenId: uint256) -> String[1024]:
     assert _tokenId < self.tokenIndex
-    baseJSON: String[1024] = 'miau'
+    baseJSON: String[1024] = '{"hola":"chao"}'
     return baseJSON
+    
